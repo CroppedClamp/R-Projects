@@ -163,31 +163,44 @@ for (test_matrix in test_matrices) {
 
 
 ### Perform LOO calibration
-model_formulation <- as.formula("Hospitalized.for.COVID ~ Age + SNF.")
-# model_formulation <- Hospitalized.for.COVID ~ Age + SNF. + HTN + Hx.of.DVT + CKD + Cancer + CVD + CHF + Steroids.or.IMT + ACEI.ARB + Anticoagulation.
+all_variables <- as.formula("")
+model_1 <- as.formula("Hospitalized.for.COVID ~ Age + SNF. + HTN + Hx.of.DVT + CKD + Cancer + CVD + CHF + Steroids.or.IMT + ACEI.ARB + Anticoagulation.")
+model_2 <- as.formula("Hospitalized.for.COVID ~ Age + SNF. + HTN + Hx.of.DVT + CKD + Cancer + CVD + CHF + Steroids.or.IMT + ACEI.ARB + Anticoagulation.")
 
 patients <- unique(covid$pat_num)
-mse = 0
+mse_1 = 0
+mse_2 = 0
 for (patient in patients) {
 	curr_row <- covid %>% filter(pat_num == patient)
-	sum = 0
+	sum_1 = 0
+	sum_2 = 0
 	for (i in 1:num_imputations) {
 		data_set <- complete(imputed, i)
 		train_data <- data_set %>% filter(pat_num != patient)
 		test_data <- data_set %>% filter(pat_num == patient)
-		model <- glm(model_formulation, family = binomial, data = train_data)
-		response <- predict(model, newdata = test_data, type="response")
-		sum = sum + response
+
+		output_1 <- glm(model_1, family = binomial, data = train_data)
+		response_1 <- predict(output_1, newdata = test_data, type="response")
+		sum_1 = sum_1 + response_2
+
+		output_2 <- glm(model_2, family = binomial, data = train_data)
+		response_2 <- predict(output_2, newdata = test_data, type="response")
+		sum_2 = sum_2 + response_2
 	}
-	avg = sum/num_imputations
+
+	avg_1 <- sum_1 / num_imputations
+	avg_2 <- sum_2 / num_imputations
 	if (curr_row$Hospitalized.for.COVID[1] == "Yes") {
-		print(paste(patient, 1, avg, sep=","))
-		mse = mse + ((1 - avg) * (1 - avg))
+		print(paste(patient, 1, avg_1, avg_2, sep=","))
+		mse_1 = mse_1 + ((1 - avg_1) * (1 - avg_1))
+		mse_2 = mse_2 + ((1 - avg_2) * (1 - avg_2))
 	} else {
-		print(paste(patient, 0, avg, sep=","))
-		mse = mse + (avg * avg)
+		print(paste(patient, 0, avg_1, avg_2, sep=","))
+		mse_1 = mse_1 + (avg_1 * avg_1)
+		mse_2 = mse_2 + (avg_2 * avg_2)
 	}
 }
-print(paste("MSE: ", mse / length(patients)))
+print(paste("MSE_1: ", mse_1 / length(patients)))
+print(paste("MSE_2: ", mse_2 / length(patients)))
 
-adjusted_risk_ratios <- with(imputed, glm(model_formulation, family = binomial))
+adjusted_risk_ratios <- with(imputed, glm(model_1, family = binomial))
